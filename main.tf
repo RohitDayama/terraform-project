@@ -10,38 +10,17 @@ resource "aws_instance" "project_instance" {
   }
   associate_public_ip_address = true
   user_data  = <<-EOF
-              #!/bin/bash
+             #!/bin/bash
               sudo apt-get update
-              sudo apt-get install -y openjdk-8-jdk  # Install Java (OpenJDK 8)
-              wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -
-              sudo sh -c 'echo deb https://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+              sudo apt-get install -y default-jdk
+              sudo apt-get install -y nginx
+              wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -
+              sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
               sudo apt-get update
-              sudo apt-get install -y jenkins        # Install Jenkins
-              sudo systemctl start jenkins            # Start Jenkins service
-              sudo systemctl enable jenkins           # Enable Jenkins service to start on boot
-              
-              sudo apt-get update
-              sudo apt-get install -y openjdk-8-jdk  # Install Java (OpenJDK 8)
-              wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -
-              sudo sh -c 'echo deb https://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
-              sudo apt-get update
-              sudo apt-get install -y jenkins        # Install Jenkins
-              sudo systemctl start jenkins            # Start Jenkins service
-              sudo systemctl enable jenkins           # Enable Jenkins service to start on boot
+              sudo apt-get install -y jenkins
+              sudo systemctl start jenkins
+              EOF
 
-sudo apt update
-
-# Install Nginx
-sudo apt install -y nginx
-
-# Start Nginx service
-sudo systemctl start nginx
-
-# Enable Nginx service to start on boot
-sudo systemctl enable nginx
-
-echo  "hello wrold" >/var/www/html/index.html
-EOF
 
 }
 
@@ -159,9 +138,22 @@ resource "aws_lb" "my_load_balancer" {
 
 resource "aws_lb_target_group" "test" {
   name     = "tf-example-lb-tg"
-  port     = 8000
+  port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.project_vpc.id
+  target_type = "instance"
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+   // port                = "8080"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 3
+    unhealthy_threshold = 2
+    matcher = "200"
+  }
+  
   
 }
 resource "aws_lb_listener" "front_end" {
@@ -181,4 +173,5 @@ resource "aws_lb_target_group_attachment" "example_attachment" {
  // count         = length(aws_instance.project_instance.*)
   target_group_arn = aws_lb_target_group.test.arn
   target_id        = aws_instance.project_instance.id
+  
 }
